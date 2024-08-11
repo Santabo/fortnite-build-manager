@@ -37,13 +37,15 @@ A CLI tool for managing Fortnite builds, updating configuration files, and launc
 
 ### Creating the Configuration File
 
-1. **Create `config` directory**:
+When you run the `run.bat` file for the first time, it will automatically create the necessary configuration files for you. The `config` directory and `builds.json` file will be generated in the root of the project directory if they do not already exist.
 
-    Ensure there is a directory named `config` in your project root.
+1. **Run the `run.bat` file**:
 
-2. **Create `builds.json` file**:
+    Simply execute the `run.bat` file located in the repo directory. This batch file will set up the environment, create the `config` directory and `builds.json` file if they do not exist, and start the CLI tool.
 
-    Inside the `config` directory, create a `builds.json` file with the following content:
+2. **Edit `builds.json`**:
+
+    Once the configuration file is created, you can edit it to set your specific paths and settings. The default configuration will look like this:
 
     ```json
     {
