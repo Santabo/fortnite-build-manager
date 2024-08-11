@@ -2,184 +2,165 @@ import fs from 'fs';
 import path from 'path';
 import readlineSync from 'readline-sync';
 import chalk from 'chalk';
-import { fileURLToPath } from 'url';
+import { exec } from 'child_process';
 
-// Resolve __dirname for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const configDir = path.join(__dirname, 'config');
-const buildsFilePath = path.join(configDir, 'builds.json');
-const carbonConfigPathFile = path.join(configDir, 'carbon-config-path.txt');
-
-// Ensure config directory exists
-if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir);
-}
-
-// Create default configuration files if they do not exist
-function initializeConfig() {
-    if (!fs.existsSync(buildsFilePath)) {
-        const defaultConfig = { username: "DefaultUser", builds: [], configPath: '' };
-        fs.writeFileSync(buildsFilePath, JSON.stringify(defaultConfig, null, 4), 'utf8');
-        console.log(chalk.green("Default builds.json created."));
+// Function to ensure a file exists
+const ensureFileExists = (filePath, defaultContent = '{}') => {
+    if (!fs.existsSync(filePath)) {
+        fs.writeFileSync(filePath, defaultContent, 'utf8');
+        console.log(`Created missing file: ${filePath}`);
     }
+};
 
-    if (!fs.existsSync(carbonConfigPathFile)) {
-        fs.writeFileSync(carbonConfigPathFile, '', 'utf8');
-        console.log(chalk.green("Default carbon-config-path.txt created."));
-    }
-}
-
-// Load configuration from builds.json
-function loadConfig() {
+// Function to load configuration files
+const loadConfig = () => {
     try {
-        const data = fs.readFileSync(buildsFilePath, 'utf8');
-        return JSON.parse(data);
-    } catch (err) {
-        console.error(chalk.red("Error reading builds.json:"), err);
-        return { username: "DefaultUser", builds: [], configPath: '' };
-    }
-}
+        const configPath = path.join(process.cwd(), 'config', 'builds.json');
+        ensureFileExists(configPath, JSON.stringify({
+            username: 'DefaultUser',
+            builds: [],
+            carbonConfigPath: '',
+            neonitePath: '',
+            carbonLauncherPath: ''
+        }));
 
-// Save configuration to builds.json
-function saveConfig(newConfig) {
+        const buildsData = fs.readFileSync(configPath, 'utf8');
+        return JSON.parse(buildsData);
+    } catch (error) {
+        console.error('Error loading configuration:', error);
+        process.exit(1);
+    }
+};
+
+// Function to save configuration changes
+const saveConfig = (config) => {
     try {
-        fs.writeFileSync(buildsFilePath, JSON.stringify(newConfig, null, 4), 'utf8');
-        console.log(chalk.green("Configuration saved successfully!"));
-    } catch (err) {
-        console.error(chalk.red("Error writing to builds.json:"), err);
+        const configPath = path.join(process.cwd(), 'config', 'builds.json');
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf8');
+        console.log('Configuration saved successfully!');
+    } catch (error) {
+        console.error('Error saving configuration:', error);
+        process.exit(1);
     }
-}
+};
 
-// Update Carbon.config file
-function updateCarbonConfig(username, build) {
-    const carbonConfigPath = getCarbonConfigPath();
-    if (carbonConfigPath) {
-        const config = { name: username, path: build.path };
-        try {
-            fs.writeFileSync(carbonConfigPath, JSON.stringify(config, null, 4), 'utf8');
-            console.log(chalk.green(`Carbon.config updated with ${username} and build ${build.name}!`));
-        } catch (err) {
-            console.error(chalk.red("Error writing to Carbon.config:"), err);
-        }
-    } else {
-        console.log(chalk.red('Carbon.config path not set. Please set the path first.'));
+// Function to update Carbon.config
+const updateCarbonConfig = (configPath, build) => {
+    try {
+        const config = {
+            name: build.name,
+            path: build.path
+        };
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 4), 'utf8');
+        console.log(`Carbon.config updated with build ${build.name}!`);
+    } catch (error) {
+        console.error('Error updating Carbon.config:', error);
+        process.exit(1);
     }
-}
+};
 
-// List available builds
-function listBuilds(builds) {
-    console.log(chalk.cyan("\nAvailable Builds:"));
-    builds.forEach((build, index) => {
-        console.log(chalk.blue(`${index + 1}. ${build.name} (${build.path})`));
-    });
-}
+// Function to start applications in separate windows
+const startApplications = (neonitePath, carbonLauncherPath) => {
+    const startCommand = (command, cwd) => {
+        exec(`start "" "${command}"`, { cwd }, (error) => {
+            if (error) {
+                console.error(`Error starting ${command}:`, error);
+            } else {
+                console.log(`${command} started successfully.`);
+            }
+        });
+    };
 
-// Add a new build
-function addBuild(builds) {
-    const name = readlineSync.question(chalk.yellow("Enter the build name: "));
-    const path = readlineSync.question(chalk.yellow("Enter the build path: "));
-    builds.push({ name, path });
-    saveConfig({ username: builds.username, builds });
-    console.log(chalk.green(`Build ${name} added.`));
-}
-
-// Rename a build
-function renameBuild(builds, oldName, newName) {
-    const build = builds.find(b => b.name === oldName);
-    if (build) {
-        build.name = newName;
-        saveConfig({ username: builds.username, builds });
-        console.log(chalk.green(`Build renamed to ${newName}!`));
-    } else {
-        console.log(chalk.red(`Build ${oldName} not found.`));
+    if (neonitePath) {
+        // Extract directory path from neonitePath
+        const neoniteDir = path.dirname(neonitePath);
+        console.log(`Starting Neonite using app.js located at: ${path.join(neoniteDir, 'app.js')} in directory: ${neoniteDir}`);
+        startCommand(neonitePath, neoniteDir);
     }
-}
 
-// Change the path of a build
-function changeBuildPath(builds, buildName, newPath) {
-    const build = builds.find(b => b.name === buildName);
-    if (build) {
-        build.path = newPath;
-        saveConfig({ username: builds.username, builds });
-        console.log(chalk.green(`Path for ${buildName} updated!`));
-    } else {
-        console.log(chalk.red(`Build ${buildName} not found.`));
+    if (carbonLauncherPath) {
+        console.log(`Starting Carbon Launcher using executable located at: ${carbonLauncherPath}`);
+        startCommand(carbonLauncherPath, path.dirname(carbonLauncherPath));
     }
-}
-
-// Change the username
-function changeUsername(config, newUsername) {
-    config.username = newUsername;
-    saveConfig(config);
-    console.log(chalk.green(`Username updated to ${newUsername}!`));
-}
-
-// Set the Carbon.config file path
-function setCarbonConfigPath() {
-    const newPath = readlineSync.question(chalk.yellow('Enter the full path for the Carbon.config file: '));
-    if (fs.existsSync(path.dirname(newPath))) {
-        fs.writeFileSync(carbonConfigPathFile, newPath, 'utf8');
-        console.log(chalk.green(`Carbon.config path updated to ${newPath}`));
-    } else {
-        console.log(chalk.red('The specified path directory does not exist.'));
-    }
-}
-
-// Get the Carbon.config file path
-function getCarbonConfigPath() {
-    if (fs.existsSync(carbonConfigPathFile)) {
-        return fs.readFileSync(carbonConfigPathFile, 'utf8').trim();
-    } else {
-        console.log(chalk.red('Carbon.config path not set.'));
-        return '';
-    }
-}
+};
 
 // Main function to interact with the user
-function main() {
-    console.log(chalk.green('Fortnite Build Manager'));
-    initializeConfig(); // Ensure configuration files exist
-
+const main = () => {
     const config = loadConfig();
-    const { username, builds } = config;
+    const username = config.username || 'DefaultUser';
 
-    if (builds.length === 0) {
-        console.log(chalk.red("No builds found in builds.json."));
-        if (readlineSync.keyInYNStrict(chalk.yellow('Would you like to add a build now?'))) {
-            addBuild(builds);
+    if (config.builds.length === 0) {
+        console.log(chalk.red('No builds found in builds.json.'));
+        const addBuild = readlineSync.keyInYNStrict('Would you like to add a build?');
+
+        if (addBuild) {
+            const name = readlineSync.question('Enter the build name: ');
+            const buildPath = readlineSync.question('Enter the build path (e.g., F:\\Fortnite Builds\\Big Bang Event v27.11): ');
+            config.builds.push({ name, path: buildPath });
+            saveConfig(config);
+            console.log('Build added successfully.');
         }
-        return;
+        process.exit();
     }
 
-    console.log(chalk.cyan("Note: The build location should include the folders 'Cloud', 'Engine', and 'FortniteGame'."));
-    listBuilds(builds);
+    console.log(chalk.blue('\nAvailable Builds:'));
+    config.builds.forEach((build, index) => {
+        console.log(chalk.green(`${index + 1}. ${build.name} (${build.path})`));
+    });
 
-    const action = readlineSync.question(
-        `${chalk.blue(`\nCurrent username is '${username}'.`)}\n` +
-        `${chalk.yellow('Select a build by number, or type "rename" to rename a build, "path" to change a build\'s path, "username" to change the username, "setpath" to set Carbon.config path: ')}`
-    ).trim();
+    const action = readlineSync.question(`\n${chalk.blue(`Current username is '${username}'.`)} ${chalk.yellow('Select a build by number, or type "rename" to rename a build, "path" to change a build\'s path, "username" to change the username, "setpath" to set Carbon.config path, "setneonite" to set Neonite path, "setlauncher" to set Carbon Launcher path: ')}`);
 
-    if (!isNaN(action) && action > 0 && action <= builds.length) {
-        const selectedBuild = builds[action - 1];
-        updateCarbonConfig(username, selectedBuild);
+    const choice = parseInt(action);
+
+    if (!isNaN(choice) && choice > 0 && choice <= config.builds.length) {
+        const selectedBuild = config.builds[choice - 1];
+        updateCarbonConfig(config.carbonConfigPath, selectedBuild);
+        startApplications(config.neonitePath, config.carbonLauncherPath);
     } else if (action === 'rename') {
-        const oldName = readlineSync.question(chalk.yellow("Enter the current build name: "));
-        const newName = readlineSync.question(chalk.yellow("Enter the new build name: "));
-        renameBuild(builds, oldName, newName);
+        const oldName = readlineSync.question('Enter the current build name: ');
+        const newName = readlineSync.question('Enter the new build name: ');
+        const build = config.builds.find(b => b.name === oldName);
+        if (build) {
+            build.name = newName;
+            saveConfig(config);
+            console.log(`Build renamed to ${newName}!`);
+        } else {
+            console.log(`Build ${oldName} not found.`);
+        }
     } else if (action === 'path') {
-        const buildName = readlineSync.question(chalk.yellow("Enter the build name to change the path for: "));
-        const newPath = readlineSync.question(chalk.yellow("Enter the new path: "));
-        changeBuildPath(builds, buildName, newPath);
+        const buildName = readlineSync.question('Enter the build name to change the path for: ');
+        const newPath = readlineSync.question('Enter the new path: ');
+        const build = config.builds.find(b => b.name === buildName);
+        if (build) {
+            build.path = newPath;
+            saveConfig(config);
+            console.log(`Path for ${buildName} updated!`);
+        } else {
+            console.log(`Build ${buildName} not found.`);
+        }
     } else if (action === 'username') {
-        const newUsername = readlineSync.question(chalk.yellow("Enter the new username: "));
-        changeUsername(config, newUsername);
+        const newUsername = readlineSync.question('Enter the new username: ');
+        config.username = newUsername;
+        saveConfig(config);
+        console.log(`Username updated to ${newUsername}!`);
     } else if (action === 'setpath') {
-        setCarbonConfigPath();
+        const newPath = readlineSync.question('Enter the new Carbon.config path: ');
+        config.carbonConfigPath = newPath;
+        saveConfig(config);
+        console.log(`Carbon.config path updated to ${newPath}`);
+    } else if (action === 'setneonite') {
+        const newPath = readlineSync.question('Enter the new Neonite executable path: ');
+        config.neonitePath = newPath;
+        saveConfig(config);
+        console.log(`Neonite path updated to ${newPath}`);
+    } else if (action === 'setlauncher') {
+        const newPath = readlineSync.question('Enter the new Carbon Launcher executable path: ');
+        config.carbonLauncherPath = newPath;
+        saveConfig(config);
+        console.log(`Carbon Launcher path updated to ${newPath}`);
     } else {
-        console.log(chalk.red("Invalid choice."));
+        console.log('Invalid choice.');
     }
-}
+};
 
 main();

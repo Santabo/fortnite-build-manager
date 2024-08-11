@@ -1,9 +1,12 @@
 {
+    "username": "DefaultUser",
     "builds": [
         {
             "name": "Big Bang Event",
             "path": "F:\\Fortnite Builds\\Big Bang Event v27.11"
         }
     ],
-    "username": "TestName"
+    "carbonConfigPath": "C:\\Users\\necro\\Documents\\Carbon_v1.7 (Beta)\\Carbon.config",
+    "neonitePath": "C:\\Users\\necro\\Documents\\Carbon_v1.7 (Beta)\\Neonite-main\\run.bat",
+    "carbonLauncherPath": "C:\\Users\\necro\\Documents\\Carbon_v1.7 (Beta)\\CarbonLauncher.exe"
 }
