@@ -2,6 +2,8 @@
 
 A CLI tool for managing Fortnite builds, updating configuration files, and launching associated applications like Neonite and Carbon Launcher.
 
+**Disclaimer:** This is an unofficial tool and is not endorsed by Neonite, Cranium, Fortnite, or Carbon developers. Created by FoxStorm1 on Discord and Santabo on GitHub. Please do not copy or redistribute this code without permission.
+
 ## Features
 
 - Manage Fortnite builds and paths.
