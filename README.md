@@ -1,2 +1,2 @@
-# Fortnite Build Manager
- Useful tool to manage build paths for Fortnite Builds using the Neonite and Carbon tools
+# Fortnite Build Manager (WIP)
+ Useful tool to manage build paths for Fortnite Builds using the Neonite and Carbon tools.
